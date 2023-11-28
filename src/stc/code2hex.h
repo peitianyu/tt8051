@@ -112,7 +112,6 @@ public:
 
     std::vector<OperandEnum> split_operand(const std::string& str)
     {
-        // @ # + / . $
         std::vector<OperandEnum> operand_list;
         std::string operand_str = str;
         
@@ -186,8 +185,6 @@ public:
 
         return operand_list;
     }
-
-    bool is_num(char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
 private:
     std::string mov2hex(const Code& code)
     {
