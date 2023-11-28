@@ -1,5 +1,5 @@
-#ifndef __CODE2HEX_H__
-#define __CODE2HEX_H__
+#ifndef __ASM2HEX_H__
+#define __ASM2HEX_H__
 
 #include "code.h"
 #include <vector>
@@ -7,20 +7,20 @@
 #include <sstream>
 #include <iostream>
 /*
-R0~R7 A AB C DPTR PC 
-@ # + / . $ , bit, u8, u16 
+特殊寄存器, 常用符号, 数据类型
+R0~R7 A AB C DPTR PC @ # + / . $ , bit, u8, u16, var
 */
 enum OperandEnum
 {
     REG_R0 = 0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
     REG_A, REG_AB, REG_C, REG_DPTR, REG_PC, SYMBOL_AT, SYMBOL_HASH, SYMBOL_PLUS, 
-    SYMBOL_SLASH, SYMBOL_DOT, SYMBOL_DOLLAR, SYMBOL_COMMA, DATA_BIT, DATA_U8, DATA_U16
+    SYMBOL_SLASH, SYMBOL_DOT, SYMBOL_DOLLAR, SYMBOL_COMMA, DATA_BIT, DATA_U8, DATA_U16, DATA_VAR
 };
 
-class Code2Hex
+class Asm2Hex
 {
 public:
-    Code2Hex() = default;
+    Asm2Hex() = default;
 
     std::string hex(const Code& code)
     {
@@ -121,7 +121,7 @@ public:
             operand_list.push_back(SYMBOL_AT);
             operand_list.push_back(REG_A);
             operand_list.push_back(SYMBOL_PLUS);
-            std::string plus_str = operand_str.substr(plus_pos);
+            std::string plus_str = operand_str.substr(plus_pos+1);
             if(plus_str == "PC" || operand_str == "pc")     operand_list.push_back(REG_PC);
             else if(plus_str == "DPTR" || operand_str == "dptr") operand_list.push_back(REG_DPTR);
 
@@ -147,6 +147,7 @@ public:
         // FIXME: 注意这里数据/地址的处理
         if(operand_str.find('.') != std::string::npos){
             operand_list.push_back(DATA_BIT);
+            return operand_list;
         }
 
         // 4. 若剩下是寄存器, 则直接返回operand_list
@@ -166,24 +167,34 @@ public:
         else{
             // 5. 若是数据, 则判断是u8, 还是u16
             uint16_t val = 0;
-            if(operand_str.back() == 'B' || operand_str.back() == 'b'){
+            if((operand_str.back() == 'B' || operand_str.back() == 'b') && operand_str.size() > 1){
                 val = std::stoi(operand_str, nullptr, 2);
-
-                if(operand_str.size()>9)   operand_list.push_back(DATA_U16);
-                else                       operand_list.push_back(DATA_U8);
-
-            }else if(operand_str.back() == 'H' || operand_str.back() == 'h'){
+                if(operand_str.size()>9)        operand_list.push_back(DATA_U16);
+                else                            operand_list.push_back(DATA_U8);
+            }else if((operand_str.back() == 'H' || operand_str.back() == 'h') && operand_str.size() > 1){
                 val = std::stoi(operand_str, nullptr, 16);
-                if(operand_str.size()>3)   operand_list.push_back(DATA_U16);
-                else                       operand_list.push_back(DATA_U8);
+                if(operand_str.size()>3)        operand_list.push_back(DATA_U16);
+                else                            operand_list.push_back(DATA_U8);
             }else{
-                val = std::stoi(operand_str, nullptr, 10);
-                if(val > 255)              operand_list.push_back(DATA_U16);
-                else                       operand_list.push_back(DATA_U8);
+                // 6. 可能为变量, 也可能为十进制数
+                if(!is_number(operand_str))     operand_list.push_back(DATA_VAR);  
+                else{
+                    val = std::stoi(operand_str, nullptr, 10);
+                    if(val > 255)               operand_list.push_back(DATA_U16);
+                    else                        operand_list.push_back(DATA_U8);
+                }
             }
         }
 
         return operand_list;
+    }
+private:
+    bool is_number(const std::string& str)
+    {
+        for(auto c:str)
+            if(c < '0' || c > '9') return false;
+
+        return true;
     }
 private:
     std::string mov2hex(const Code& code)
@@ -432,4 +443,4 @@ private:
     // }
 };
 
-#endif // !__CODE2HEX_H__
+#endif // !__ASM2HEX_H__

@@ -19,8 +19,17 @@ public:
         std::string line;
         while (std::getline(ifs, line)) 
         { 
-            std::string str = filter_space(filter_semicolon(line));
-            
+            std::string str = filter_semicolon(line);
+
+            std::size_t pos = str.find(':');
+            if (pos != std::string::npos) 
+            {
+                m_codes.push_back(str.substr(0, pos+1));
+                str = str.substr(pos+1);
+            }
+
+            str = filter_space(str);
+
             if(is_whitespace(str)) continue;
 
             m_codes.push_back(str);
