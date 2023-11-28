@@ -20,6 +20,7 @@ public:
         while (std::getline(ifs, line)) 
         { 
             std::string str = filter_space(filter_semicolon(line));
+            
             if(is_whitespace(str)) continue;
 
             m_codes.push_back(str);
@@ -54,10 +55,14 @@ private:
 
     std::string filter_space(const std::string& str) 
     {
-        std::size_t pos = str.find_first_not_of(' ');
-        if (pos != std::string::npos) return str.substr(pos);
+        static std::vector<char> s_space_char = {'\t','\n','\v','\f','\r',' '};
+        std::size_t space_pos = 0;
+        for(char ch : s_space_char){
+            std::size_t pos = str.find_first_not_of(ch);
+            if (pos != std::string::npos && pos > space_pos) space_pos = pos;
+        }
 
-        return str;
+        return str.substr(space_pos);
     }
 private:
     std::vector<std::string> m_codes;
