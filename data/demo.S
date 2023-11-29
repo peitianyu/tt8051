@@ -1,6 +1,8 @@
-    P4      EQU    E8H
+    P4      SFR    E8H
 
-    ORG     0000H
+    abcd    DB     1, 1, 22H
+
+    ORG     0800H
     LJMP    MAIN
 
     ORG     0100H

@@ -29,7 +29,7 @@ private:
             "AJMP", "ajmp", "SJMP", "sjmp", "LJMP", "ljmp", "JMP", "jmp", "JZ", "jz", "JNZ", "jnz", "CJNE", "cjne", "DJNZ", "djnz", 
             "ACALL", "acall", "LCALL", "lcall", "RET", "ret", "RETI", "reti", "NOP", "nop",
             "SETB", "setb", "JC", "jc", "JNC", "jnc", "JB", "jb", "JNB", "jnb", "JBC", "jbc",
-            "ORG", "org", "LABEL", "label", "DB", "db", "EQU", "equ", "SFR", "sfr", "SBIT", "sbit", "#INCLUDE", "#include", "END", "end"
+            "ORG", "org", "LABEL", "label", "DB", "db", "SFR", "sfr", "SBIT", "sbit", "END", "end"
         };
 
         // 1. 判断LABEL
@@ -43,8 +43,8 @@ private:
             if(front_str == ins) return {addr, front_str, remove_spaces(back_str)};
         }
 
-        // 3. 若还没有, 则判断是否是"EQU"或者"DATA"等放在中间的特殊指令
-        static std::vector<std::string> s_special_instructions = {"EQU", "equ", "DB", "db", "SFR", "sfr", "SBIT", "sbit"};
+        // 3. 若还没有, 则判断是否是"DATA"等放在中间的特殊指令
+        static std::vector<std::string> s_special_instructions = {"DB", "db", "SFR", "sfr", "SBIT", "sbit"};
         for(auto& ins: s_special_instructions)
         {
             if(ins == back_str.substr(0, ins.size())) 

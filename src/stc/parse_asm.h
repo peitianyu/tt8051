@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <map>
 /*
 特殊寄存器, 常用符号, 数据类型
 R0~R7 A AB C DPTR PC @ # + / . $ , bit, u8, u16, var
@@ -14,7 +15,7 @@ enum OperandEnum
 {
     REG_R0 = 0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
     REG_A, REG_AB, REG_C, REG_DPTR, REG_PC, SYMBOL_AT, SYMBOL_HASH, SYMBOL_PLUS, 
-    SYMBOL_SLASH, SYMBOL_DOT, SYMBOL_DOLLAR, SYMBOL_COMMA, DATA_U8, DATA_U16, DATA_VAR
+    SYMBOL_SLASH, SYMBOL_DOT, SYMBOL_DOLLAR, SYMBOL_COMMA, DATA_BIT, DATA_U8, DATA_U16, DATA_VAR
 };
 
 struct OperandData
@@ -26,7 +27,36 @@ struct OperandData
 class ParseAsm
 {
 public:
-    ParseAsm() = default;
+    ParseAsm() : m_curr_addr(0), m_end(false) {}
+
+    void read_code(const Code& code)
+    {
+        if(code.mnemonic == "ERR") return;
+        if(m_end) return;
+
+        if(code.mnemonic == "LABEL" || code.mnemonic == "label")            label_handle(asm_data(code)), m_asm_codes.push_back(code);
+        else if(code.mnemonic == "DB"   || code.mnemonic == "db")           db_handle(asm_data(code));
+        else if(code.mnemonic == "SFR"  || code.mnemonic == "sfr")          sfr_handle(asm_data(code));
+        else if(code.mnemonic == "SBIT" || code.mnemonic == "sbit")         sbit_handle(asm_data(code));
+        else if(code.mnemonic == "END"  || code.mnemonic == "end")          end_handle(asm_data(code));
+        else                                                                m_asm_codes.push_back(code);
+    }
+
+    void write_hex()
+    {
+        for(Code& code : m_asm_codes)
+        {
+            LOG_TEST(code.addr,": [ ", code.mnemonic, " ] ", code.operands);
+
+            if(code.mnemonic == "ORG" || code.mnemonic == "org")            org_handle(asm_data(code));
+            else if(code.mnemonic == "LABEL" || code.mnemonic == "label")   label_handle(asm_data(code));
+            else{
+                AsmData data = asm_data(code);
+                for(auto p: data.operands) std::cout << std::hex << (int)p << " ";
+                std::cout << std::endl;
+            }
+        }
+    }
 
     AsmData asm_data(const Code& code)
     {
@@ -77,10 +107,8 @@ public:
         else if(code.mnemonic == "ORG"  || code.mnemonic == "org")          return {"ORG", org2hex(code)};
         else if(code.mnemonic == "LABEL"|| code.mnemonic == "label")        return {"LABEL", label2hex(code)};
         else if(code.mnemonic == "DB"   || code.mnemonic == "db")           return {"DB", db2hex(code)};
-        else if(code.mnemonic == "EQU"  || code.mnemonic == "equ")          return {"EQU", equ2hex(code)};
         else if(code.mnemonic == "SFR"  || code.mnemonic == "sfr")          return {"SFR", sfr2hex(code)};
-        else if(code.mnemonic == "SBIT"  || code.mnemonic == "sbit")          return {"SBIT", sbit2hex(code)};
-        else if(code.mnemonic == "#INCLUDE"  || code.mnemonic == "#include")          return {"INCLUDE", include2hex(code)};
+        else if(code.mnemonic == "SBIT"  || code.mnemonic == "sbit")        return {"SBIT", sbit2hex(code)};
         else if(code.mnemonic == "END"  || code.mnemonic == "end")          return {"END", end2hex(code)};
         else return {};
     }
@@ -155,14 +183,19 @@ private:
         }
 
         // 3. 如果有'.', 一般针对bit数据, 如P0.1这种
-        // FIXME: 注意这里地址的处理
-        if(operand_str.find('.') != std::string::npos || operand_str.find('^') != std::string::npos){
-            operand_data.operands.push_back(DATA_U8);
-            // val = P0^1
-            operand_data.datas.push_back(0);
+        std::size_t bit_pos = operand_str.find('.');
+        if(bit_pos != std::string::npos) 
+        {
+            std::string sfr_sr = operand_str.substr(0, bit_pos);
+            auto iter = m_sfrs.find(sfr_sr);
+            if(iter != m_sfrs.end()){
+                operand_data.operands.push_back(DATA_U8); 
+                operand_data.datas.push_back(m_sfrs[sfr_sr]^(operand_str.back()-'0'));
+            } 
+            else operand_data.operands.push_back(DATA_VAR);
             return operand_data;
         }
-
+        
         // 4. 若剩下是寄存器, 则直接返回operand_list
         if(operand_str == "A" || operand_str == "a")            operand_data.operands.push_back(REG_A);
         else if(operand_str == "AB" || operand_str == "ab")     operand_data.operands.push_back(REG_AB);
@@ -190,12 +223,25 @@ private:
                 if(operand_str.size()>3)        operand_data.operands.push_back(DATA_U16), 
                                                 operand_data.datas.push_back(val >> 8), operand_data.datas.push_back(val & 0xFF); 
                 else                            operand_data.operands.push_back(DATA_U8), operand_data.datas.push_back(val);
+            }else if((operand_str[0] == '0' && (operand_str[1] == 'x' || operand_str[1] == 'X')) && operand_str.size() > 2){
+                val = std::stoi(operand_str.substr(2), nullptr, 16);
+                if(operand_str.size()>4)        operand_data.operands.push_back(DATA_U16), 
+                                                operand_data.datas.push_back(val >> 8), operand_data.datas.push_back(val & 0xFF); 
+                else                            operand_data.operands.push_back(DATA_U8), operand_data.datas.push_back(val);
             }else{
                 // 6. 可能为变量, 也可能为十进制数
                 if(!is_number(operand_str)){
-                    operand_data.operands.push_back(DATA_VAR);  
-                    operand_data.datas.push_back(operand_str.size());
-                    operand_data.datas.insert(operand_data.datas.end(), operand_str.begin(), operand_str.end());
+                    auto sfr_iter = m_sfrs.find(operand_str);
+                    auto label_iter = m_labels.find(operand_str);
+                    if(sfr_iter != m_sfrs.end()) operand_data.operands.push_back(DATA_U8), operand_data.datas.push_back(m_sfrs[operand_str]);
+                    else if(label_iter != m_labels.end()) operand_data.operands.push_back(DATA_U16), 
+                                                        operand_data.datas.push_back(m_labels[operand_str] >> 8), 
+                                                        operand_data.datas.push_back(m_labels[operand_str] & 0xFF);  
+                    else {
+                        operand_data.operands.push_back(DATA_VAR);
+                        operand_data.datas.push_back(operand_str.size());
+                        operand_data.datas.insert(operand_data.datas.end(), operand_str.begin(), operand_str.end());
+                    }
                 }     
                 else{
                     val = std::stoi(operand_str, nullptr, 10);
@@ -956,19 +1002,6 @@ private:
         return operand_list;
     }
 
-    std::vector<uint8_t> equ2hex(const Code& code)
-    {
-        OperandData operand_data = parse_operands(code.operands);
-        std::vector<OperandEnum> parse_operand_list = operand_data.operands;
-        std::vector<uint8_t> datas = operand_data.datas;
-
-        std::vector<uint8_t> operand_list;
-        operand_list.push_back(datas[0]);                       // string长度
-        operand_list.push_back(1);                              // data长度
-        if(parse_operand_list[0] == DATA_VAR) for(uint8_t i = 1; i < datas.size(); i++) operand_list.push_back(datas[i]);
-        return operand_list;
-    }
-
     std::vector<uint8_t> sfr2hex(const Code& code)
     {
         OperandData operand_data = parse_operands(code.operands);
@@ -995,23 +1028,56 @@ private:
         return operand_list;
     }
 
-    std::vector<uint8_t> include2hex(const Code& code)
-    {
-        OperandData operand_data = parse_operands(code.operands);
-        std::vector<OperandEnum> parse_operand_list = operand_data.operands;
-        std::vector<uint8_t> datas = operand_data.datas;
-
-        std::vector<uint8_t> operand_list;
-        operand_list.push_back(datas[0]);                       // string长度
-        operand_list.push_back(0);                              // data长度
-        if(parse_operand_list[0] == DATA_VAR) for(uint8_t i = 1; i < datas.size(); i++) operand_list.push_back(datas[i]);
-        return operand_list;
-    }
-
     std::vector<uint8_t> end2hex(const Code& code)
     {
         return {};
     }
+private:
+    void org_handle(const AsmData& data) { m_curr_addr = (data.operands[0] << 8) + data.operands[1]; }
+
+    void label_handle(const AsmData& data) 
+    {
+        std::string str;
+        for(uint i = 2; i < data.operands.size(); i++) str.push_back(data.operands[i]);
+        m_labels[str] = m_curr_addr;
+    }
+
+    void db_handle(const AsmData& data) 
+    {
+        std::vector<uint8_t> operands = data.operands;
+        std::string str;
+        std::size_t str_pos = operands[0]+2;
+        for(uint i = 2; i < str_pos; i++) str.push_back(operands[i]);
+
+        std::vector<uint8_t> vals;
+        for(uint i = str_pos; i < operands.size(); i++) vals.push_back(operands[i]);
+
+        m_dbs[str] = vals;
+    }
+    void sfr_handle(const AsmData& data) 
+    {
+        std::string str;
+        for(uint i = 2; i < data.operands.size()-1; i++) str.push_back(data.operands[i]);
+        m_sfrs[str] = data.operands.back();
+    }
+    void sbit_handle(const AsmData& data) 
+    {
+        std::string str;
+        for(uint i = 2; i < data.operands.size()-1; i++) str.push_back(data.operands[i]);
+        m_sbits[str] = data.operands.back();
+    }
+    void end_handle(const AsmData& data) 
+    {
+        m_end = true;
+    }
+private:
+    uint16_t m_curr_addr;
+    bool m_end;
+    std::vector<Code> m_asm_codes;
+    std::map<std::string, uint16_t> m_labels;
+    std::map<std::string, std::vector<uint8_t>> m_dbs;
+    std::map<std::string, uint8_t> m_sfrs;
+    std::map<std::string, uint8_t> m_sbits;
 };
 
 #endif // !__PARSE_ASM_H__

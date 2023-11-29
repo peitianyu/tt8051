@@ -1,3 +1,5 @@
+#INCLUDE "stc8051.S"
+
 ORG 0030h ; 注释
 people  EQU f5h ; 测试变量
 ; 注释

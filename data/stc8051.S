@@ -1,7 +1,3 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; 8051 include
-;; part of the naken_asm assembler
 B sfr 0xf0
 ACC sfr 0xe0
 PSW sfr 0xd0

@@ -43,7 +43,7 @@ TEST(parse_asm, test)
 {
     LOG_TEST("------------------------------parse_asm--------------------------");
 
-    ParseFile parse_file("../data/mov.S");
+    ParseFile parse_file("../data/asm.S");
     ParseSplitCode parse_code;
     ParseAsm parse_asm;
 
