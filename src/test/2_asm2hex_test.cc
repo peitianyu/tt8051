@@ -15,6 +15,8 @@ TEST(asm2hex, test)
     ParseFile parse_file("../data/demo.S");
     ParseSplitCode parse_code;
     ParseAsm parse_asm;
+    Asm2Hex asm2hex;
+
 
     while(true)
     {
@@ -32,8 +34,13 @@ TEST(asm2hex, test)
         std::vector<OperandEnum> operand_list = operand_data.operands;
         std::vector<uint8_t> datas = operand_data.datas;
 
-        for(auto& data : parse_asm.asm_data(code).operands) 
+        for(auto& data : parse_asm.asm_data(code).operands) {
             std::cout << std::setfill('0') << std::setw(2) << std::hex   << (int)data << " ";
+        }
         std::cout << std::endl; 
+
+        asm2hex.read_code(parse_asm.asm_data(code));
     }
+
+    asm2hex.write_hex();
 }

@@ -10,10 +10,13 @@ public:
 
     void read_code(const AsmData& data)
     {
-        
+
     }
 
-    void write_hex(const AsmData& data);
+    void write_hex()
+    {
+        
+    }
 private:
     std::vector<Code> m_codes;
 };
