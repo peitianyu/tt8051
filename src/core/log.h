@@ -25,6 +25,12 @@ std::string get_curr_time();
 #define TT_PRINT_NONE      "\033[0m"
 #define CODE_INFO " [", get_file_name(__FILE__), ":", __LINE__, " (", __FUNCTION__, ")] "
 
+#define LOG_TO_FILE(file_name, ...) \
+    do { \
+        std::ofstream out(file_name, std::ios::app); \
+        print_base(out, __VA_ARGS__) << std::endl; \
+    } while(0)
+
 #define LOG(...) print_base(std::cout, __VA_ARGS__, TT_PRINT_NONE) << std::endl
 #define LOG_FILE(out, ...) print_base(out, __VA_ARGS__) << std::endl
 

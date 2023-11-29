@@ -9,4 +9,11 @@ struct Code
     std::string operands;
 };
 
+struct AsmData
+{
+    std::string mnemonic;
+    std::vector<uint8_t> operands;
+    std::size_t addr = 0;
+};
+
 #endif // !__CODE_H__
