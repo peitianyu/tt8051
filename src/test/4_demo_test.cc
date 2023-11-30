@@ -16,6 +16,13 @@ TEST(io, test)
     test_asm2hex("../data/io.S", "../out/io.hex");
 }
 
+JUST_RUN_TEST(asm, test1)
+TEST(asm, test1)
+{
+    LOG_TEST("------------------------------asm test--------------------------");
+    test_asm2hex("../data/asm.S", "../out/asm.hex");
+}
+
 void test_asm2hex(const std::string& code_path, const std::string& hex_path)
 {
     ParseFile parse_file(code_path);
@@ -34,12 +41,12 @@ void test_asm2hex(const std::string& code_path, const std::string& hex_path)
 
     std::vector<AsmData> hex_datas = parse_asm.to_hex();
 
-    for(auto hex_data: hex_datas)
-    {
-        std::cout << hex_data.mnemonic << " addr: " << std::hex << (int)hex_data.addr << " len: " << hex_data.operands.size() << " data: ";
-        for(auto p: hex_data.operands) std::cout << std::hex << (int)p << " ";
-        std::cout  << std::endl;
-    }
+    // for(auto hex_data: hex_datas)
+    // {
+    //     std::cout << hex_data.mnemonic << " addr: " << std::hex << (int)hex_data.addr << " len: " << hex_data.operands.size() << " data: ";
+    //     for(auto p: hex_data.operands) std::cout << std::hex << (int)p << " ";
+    //     std::cout  << std::endl;
+    // }
 
     write_hex_file(hex_path, hex_datas);
 }

@@ -302,7 +302,7 @@ std::vector<uint8_t> ParseAsm::mov2hex(const Code& code)
         if(parse_operand_list[2] >= 0 && parse_operand_list[2] < 8) operand_list.push_back(0xE8 + parse_operand_list[2]);
         else if(parse_operand_list[2] == DATA_U8) operand_list.push_back(0xE5), operand_list.push_back(datas[0]);
         else if(parse_operand_list[2] == SYMBOL_AT && (parse_operand_list[3] == 0 || parse_operand_list[3] == 1)) operand_list.push_back(0xE6 + parse_operand_list[3]);
-        else if(parse_operand_list[2] == SYMBOL_HASH && parse_operand_list[3] == DATA_U8) operand_list.push_back(0xE4), operand_list.push_back(datas[0]);
+        else if(parse_operand_list[2] == SYMBOL_HASH && parse_operand_list[3] == DATA_U8) operand_list.push_back(0x74), operand_list.push_back(datas[0]);
     }
     else if(parse_operand_list[0] >= 0 && parse_operand_list[0] < 8)
     {
@@ -633,7 +633,7 @@ std::vector<uint8_t> ParseAsm::rr2hex(const Code& code)
     OperandData operand_data = parse_operands(code.operands);
     std::vector<OperandEnum> parse_operand_list = operand_data.operands;
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == REG_A) operand_list.push_back(0x02);
+    if(parse_operand_list[0] == REG_A) operand_list.push_back(0x03);
     return operand_list;
 }
 
@@ -642,7 +642,7 @@ std::vector<uint8_t> ParseAsm::rrc2hex(const Code& code)
     OperandData operand_data = parse_operands(code.operands);
     std::vector<OperandEnum> parse_operand_list = operand_data.operands;
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == REG_A) operand_list.push_back(0x12);
+    if(parse_operand_list[0] == REG_A) operand_list.push_back(0x13);
     return operand_list;
 }
 
