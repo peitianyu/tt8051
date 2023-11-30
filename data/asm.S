@@ -1,3 +1,5 @@
+#include "stc8051.S"
+
 mov a, r3
 mov a, 50
 mov a, @r1

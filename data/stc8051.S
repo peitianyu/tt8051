@@ -31,12 +31,12 @@ DP1L sfr 0x84
 DP1H sfr 0x85
 PCON sfr 0x87
 
-CY  sbit 0xd0.7
-AC  sbit 0xd0.6
-F0  sbit 0xd0.5
-RS1 sbit 0xd0.4
-RS0 sbit 0xd0.3
-OV  sbit 0xd0.2
-UD  sbit 0xd0.1
-P   sbit 0xd0.0
+CY  sbit PSW.7
+AC  sbit PSW.6
+F0  sbit PSW.5
+RS1 sbit PSW.4
+RS0 sbit PSW.3
+OV  sbit PSW.2
+UD  sbit PSW.1
+P   sbit PSW.0
 

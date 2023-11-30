@@ -1,38 +1,10 @@
-    P4      SFR    E8H
+#include "stc8051.S"
 
-    abcd    DB     1, 1, 22H
+org 0000h
+start:
+  mov P0, #0
+  mov P1, #0xf0
 
-    ORG     0800H
-    LJMP    MAIN
-
-    ORG     0100H
-MAIN:
-    CLR     P4.0
-    ACALL    DELAY
-    SETB    P4.0
-    CLR     P4.1
-    ACALL    DELAY
-    SETB    P4.1
-    CLR     P4.2
-    ACALL    DELAY
-    SETB    P4.2
-    CLR     P4.3
-    ACALL    DELAY
-    SETB    P4.3
-
-LOOP:
-    MOV     P4,#00H
-    ACALL    DELAY
-    MOV     P4,#FFH
-    
-    SJMP    LOOP
-
-DELAY:
-    MOV     R0,#20
-    MOV     R1,#0
-    MOV     R2,#0
-    
-;-----------------------------------------
-
-    END
-
+repeat:
+  setb P0.0
+  clr P0.1

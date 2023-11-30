@@ -1,7 +1,7 @@
 #INCLUDE "stc8051.S"
 
 ORG 0030h ; 注释
-people  EQU f5h ; 测试变量
+people  sfr f5h ; 测试变量
 ; 注释
 nihao: mov b, 45
 mov h, 45

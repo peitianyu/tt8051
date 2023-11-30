@@ -7,4 +7,6 @@ cd build && cmake .. && make -j6
 
 ./tt_stc
 
+# .././emu ../out/io.hex -clock=12000000
+
 cd ..
