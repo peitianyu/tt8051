@@ -16,11 +16,12 @@ TEST(io, test)
     test_asm2hex("../data/io.S", "../out/io.hex");
 }
 
-JUST_RUN_TEST(asm, test1)
-TEST(asm, test1)
+
+JUST_RUN_TEST(timer, test)
+TEST(timer, test)
 {
-    LOG_TEST("------------------------------asm test--------------------------");
-    test_asm2hex("../data/asm.S", "../out/asm.hex");
+    LOG_TEST("------------------------------timer test--------------------------");
+    test_asm2hex("../data/timer.S", "../out/timer.hex");
 }
 
 void test_asm2hex(const std::string& code_path, const std::string& hex_path)

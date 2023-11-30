@@ -6,6 +6,7 @@
 #include <sstream>
 #include <iostream>
 #include <map>
+#include <iomanip>
 /*
 特殊寄存器, 常用符号, 数据类型
 R0~R7 A AB C DPTR PC @ # + / . $ , bit, u8, u16, var

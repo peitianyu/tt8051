@@ -194,14 +194,22 @@ OperandData ParseAsm::split_operand(const std::string& str)
     std::size_t bit_pos = operand_str.find('.');
     if(bit_pos != std::string::npos) 
     {
-        std::string sfr_sr = operand_str.substr(0, bit_pos);
-        auto iter = m_sfrs.find(sfr_sr);
-        if(iter != m_sfrs.end()){
-            operand_data.operands.push_back(DATA_U8); 
-            operand_data.datas.push_back(m_sfrs[sfr_sr]^(operand_str.back()-'0'));
+        std::string sfr_str = operand_str.substr(0, bit_pos);
+        auto sfr_iter = m_sfrs.find(sfr_str);
+        if(sfr_iter != m_sfrs.end()){
+            operand_data.operands.push_back(DATA_BIT); 
+            operand_data.datas.push_back(m_sfrs[sfr_str]^(operand_str.back()-'0'));
         } 
         else operand_data.operands.push_back(DATA_VAR);
         return operand_data;
+    }
+
+    
+    auto sbit_iter = m_sbits.find(operand_str);
+    if(sbit_iter != m_sbits.end()) 
+    {
+        operand_data.operands.push_back(DATA_BIT); 
+        operand_data.datas.push_back(m_sbits[operand_str]);
     }
     
     // 4. 若剩下是寄存器, 则直接返回operand_list
@@ -321,7 +329,6 @@ std::vector<uint8_t> ParseAsm::mov2hex(const Code& code)
         else if(parse_operand_list[2] == DATA_U8) operand_list.push_back(0x85), operand_list.push_back(datas[0]), operand_list.push_back(datas[1]);
         else if(parse_operand_list[2] == SYMBOL_AT && (parse_operand_list[3] == 0 || parse_operand_list[3] == 1)) operand_list.push_back(0x86 + parse_operand_list[3]), operand_list.push_back(datas[0]);
         else if(parse_operand_list[2] == SYMBOL_HASH && parse_operand_list[3] == DATA_U8) operand_list.push_back(0x75), operand_list.push_back(datas[0]), operand_list.push_back(datas[1]);
-        else if(parse_operand_list[2] == REG_C) operand_list.push_back(0x92), operand_list.push_back(datas[0]);
     }
     else if (parse_operand_list[0] == SYMBOL_AT && (parse_operand_list[1] == 0 || parse_operand_list[1] == 1))
     {
@@ -335,7 +342,13 @@ std::vector<uint8_t> ParseAsm::mov2hex(const Code& code)
     {
         if(parse_operand_list[1] != SYMBOL_COMMA) return {};
 
-        if(parse_operand_list[2] == DATA_U8) operand_list.push_back(0xA2), operand_list.push_back(datas[0]);
+        if(parse_operand_list[2] == DATA_BIT) operand_list.push_back(0xA2), operand_list.push_back(datas[0]);
+    }
+    else if(parse_operand_list[0] == DATA_BIT)
+    {
+        if(parse_operand_list[1] != SYMBOL_COMMA) return {};
+
+        if(parse_operand_list[2] == REG_C) operand_list.push_back(0x92), operand_list.push_back(datas[0]);
     }
     else if(parse_operand_list[0] == REG_DPTR)
     {
@@ -592,7 +605,7 @@ std::vector<uint8_t> ParseAsm::clr2hex(const Code& code)
     std::vector<uint8_t> operand_list;
     if(parse_operand_list[0] == REG_A) operand_list.push_back(0xE4);
     else if(parse_operand_list[0] == REG_C) operand_list.push_back(0xC3);
-    else if(parse_operand_list[0] == DATA_U8) operand_list.push_back(0xC2), operand_list.push_back(datas[0]);
+    else if(parse_operand_list[0] == DATA_BIT) operand_list.push_back(0xC2), operand_list.push_back(datas[0]);
                                                 
     return operand_list;
 }
@@ -605,7 +618,7 @@ std::vector<uint8_t> ParseAsm::cpl2hex(const Code& code)
     std::vector<uint8_t> operand_list;
     if(parse_operand_list[0] == REG_A) operand_list.push_back(0xF4);
     else if(parse_operand_list[0] == REG_C) operand_list.push_back(0xB3);
-    else if(parse_operand_list[0] == DATA_U8) operand_list.push_back(0xB2), operand_list.push_back(datas[0]);
+    else if(parse_operand_list[0] == DATA_BIT) operand_list.push_back(0xB2), operand_list.push_back(datas[0]);
                                                 
     return operand_list;
 }
@@ -673,8 +686,8 @@ std::vector<uint8_t> ParseAsm::anl2hex(const Code& code)
     {
         if(parse_operand_list[1] != SYMBOL_COMMA) return {};
 
-        if(parse_operand_list[2] == DATA_U8) operand_list.push_back(0x82), operand_list.push_back(datas[0]);
-        if(parse_operand_list[2] == SYMBOL_SLASH && parse_operand_list[3] == DATA_U8) operand_list.push_back(0xB0), operand_list.push_back(datas[0]);
+        if(parse_operand_list[2] == DATA_BIT) operand_list.push_back(0x82), operand_list.push_back(datas[0]);
+        if(parse_operand_list[2] == SYMBOL_SLASH && parse_operand_list[3] == DATA_BIT) operand_list.push_back(0xB0), operand_list.push_back(datas[0]);
     }
 
     return operand_list;
@@ -706,8 +719,8 @@ std::vector<uint8_t> ParseAsm::orl2hex(const Code& code)
     {
         if(parse_operand_list[1] != SYMBOL_COMMA) return {};
 
-        if(parse_operand_list[2] == DATA_U8)  operand_list.push_back(0x72), operand_list.push_back(datas[0]);
-        else if(parse_operand_list[2] == SYMBOL_SLASH && parse_operand_list[3] == DATA_U8)  operand_list.push_back(0xA0), operand_list.push_back(datas[0]);
+        if(parse_operand_list[2] == DATA_BIT)  operand_list.push_back(0x72), operand_list.push_back(datas[0]);
+        else if(parse_operand_list[2] == SYMBOL_SLASH && parse_operand_list[3] == DATA_BIT)  operand_list.push_back(0xA0), operand_list.push_back(datas[0]);
     }
 
     return operand_list;
@@ -932,7 +945,7 @@ std::vector<uint8_t> ParseAsm::setb2hex(const Code& code)
 
     std::vector<uint8_t> operand_list;
     if(parse_operand_list[0] == REG_C)  operand_list.push_back(0xD3);
-    else if(parse_operand_list[0] == DATA_U8) operand_list.push_back(0xD2), operand_list.push_back(datas[0]);
+    else if(parse_operand_list[0] == DATA_BIT) operand_list.push_back(0xD2), operand_list.push_back(datas[0]);
 
     return operand_list;
 }
@@ -944,8 +957,7 @@ std::vector<uint8_t> ParseAsm::jc2hex(const Code& code)
     std::vector<uint8_t> datas = operand_data.datas;
 
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == DATA_U8) operand_list.push_back(0x40), operand_list.push_back(datas[0]); 
-    else if(parse_operand_list[0] == DATA_U16) operand_list.push_back(0x40), operand_list.push_back(datas[1]);
+    if(parse_operand_list[0] == DATA_BIT) operand_list.push_back(0x40), operand_list.push_back(datas[0]); 
     else if(parse_operand_list[0] == DATA_VAR)  operand_list.push_back(0), operand_list.push_back(0);
     
     return operand_list;
@@ -958,8 +970,7 @@ std::vector<uint8_t> ParseAsm::jnc2hex(const Code& code)
     std::vector<uint8_t> datas = operand_data.datas;
 
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == DATA_U8) operand_list.push_back(0x50), operand_list.push_back(datas[0]); 
-    else if(parse_operand_list[0] == DATA_U16) operand_list.push_back(0x50), operand_list.push_back(datas[1]);
+    if(parse_operand_list[0] == DATA_BIT) operand_list.push_back(0x50), operand_list.push_back(datas[0]); 
     else if(parse_operand_list[0] == DATA_VAR) operand_list.push_back(0), operand_list.push_back(0);
     
     return operand_list;
@@ -972,7 +983,7 @@ std::vector<uint8_t> ParseAsm::jb2hex(const Code& code)
     std::vector<uint8_t> datas = operand_data.datas;
 
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == DATA_U8)
+    if(parse_operand_list[0] == DATA_BIT)
     {
         if(parse_operand_list[1] != SYMBOL_COMMA) return {};
 
@@ -989,7 +1000,7 @@ std::vector<uint8_t> ParseAsm::jnb2hex(const Code& code)
     std::vector<uint8_t> datas = operand_data.datas;
 
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == DATA_U8)
+    if(parse_operand_list[0] == DATA_BIT)
     {
         if(parse_operand_list[1] != SYMBOL_COMMA) return {};
 
@@ -1006,7 +1017,7 @@ std::vector<uint8_t> ParseAsm::jbc2hex(const Code& code)
     std::vector<uint8_t> datas = operand_data.datas;
 
     std::vector<uint8_t> operand_list;
-    if(parse_operand_list[0] == DATA_U8)
+    if(parse_operand_list[0] == DATA_BIT)
     {
         if(parse_operand_list[1] != SYMBOL_COMMA) return {};
 
@@ -1084,20 +1095,17 @@ std::vector<uint8_t> ParseAsm::sfr2hex(const Code& code)
 
 std::vector<uint8_t> ParseAsm::sbit2hex(const Code& code)
 {
-    OperandData operand_data = parse_operands(code.operands);
-    std::vector<OperandEnum> parse_operand_list = operand_data.operands;
-    std::vector<uint8_t> datas = operand_data.datas;
+    std::size_t comma_pos = code.operands.find(',');
+    std::string addr_str = code.operands.substr(comma_pos+1);
+    addr_str.pop_back(), addr_str.pop_back();
 
-    std::vector<uint8_t> operand_list;
-    operand_list.push_back(datas[0]);                       // string长度
-    operand_list.push_back(1);                              // data长度
-    if(parse_operand_list[0] == DATA_VAR) for(uint8_t i = 1; i < datas.size(); i++) operand_list.push_back(datas[i]);
+    auto iter = m_sfrs.find(addr_str);
+    if(iter != m_sfrs.end()) m_sbits[code.operands.substr(0, comma_pos)] = m_sfrs[addr_str]^(code.operands.back()-'0');
+    else if(is_hex(addr_str)) m_sbits[code.operands.substr(0, comma_pos)] = std::stoi(addr_str, nullptr, 16)^(code.operands.back()-'0');
 
-    std::string str;
-    for(uint i = 2; i < operand_list.size()-1; i++) str.push_back(operand_list[i]);
-    m_sbits[str] = operand_list.back();
+    // std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(m_sbits[code.operands.substr(0, comma_pos)]) << std::endl;
 
-    return operand_list;
+    return {};
 }
 
 std::vector<uint8_t> ParseAsm::end2hex(const Code& code) { m_end = true; return {}; }
