@@ -747,7 +747,7 @@ std::vector<uint8_t> ParseAsm::ajmp2hex(const Code& code)
     std::vector<uint8_t> datas = operand_data.datas;
     std::vector<uint8_t> operand_list;
     if(parse_operand_list[0] == DATA_U8) operand_list.push_back(1), operand_list.push_back(datas[0]);
-    else if(parse_operand_list[0] == DATA_U16) operand_list.push_back(datas[0]+1), operand_list.push_back(datas[1]);
+    else if(parse_operand_list[0] == DATA_U16) operand_list.push_back((datas[0]<<5)+1), operand_list.push_back(datas[1]);
     else if(parse_operand_list[0] == DATA_VAR) operand_list.push_back(0), operand_list.push_back(0);
     return operand_list;
 }
@@ -891,7 +891,7 @@ std::vector<uint8_t> ParseAsm::acall2hex(const Code& code)
     std::vector<uint8_t> operand_list;
 
     if(parse_operand_list[0] == DATA_U8) operand_list.push_back(0x11), operand_list.push_back(datas[0]);
-    else if(parse_operand_list[0] == DATA_U16) operand_list.push_back(datas[0]+0x11), operand_list.push_back(datas[1]);
+    else if(parse_operand_list[0] == DATA_U16) operand_list.push_back((datas[0]<<5)+0x11), operand_list.push_back(datas[1]);
     else if(parse_operand_list[0] == DATA_VAR)  operand_list.push_back(0), operand_list.push_back(0);
     return operand_list;
 }
