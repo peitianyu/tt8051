@@ -13,5 +13,5 @@ add_definitions(-DTEST_ENABLE)
 include_directories(src/lib)
 file(GLOB_RECURSE ALL_LIBRIRY_SRCS "src/lib/*.c*")
 
-add_executable(ttstc src/app/main_test.cc ${ALL_LIBRIRY_SRCS})
-add_executable(tt8051 src/app/tt8051.cc ${ALL_LIBRIRY_SRCS})
+add_executable(ttstc src/main_test.cc ${ALL_LIBRIRY_SRCS})
+add_executable(tt8051 src/tt8051.cc ${ALL_LIBRIRY_SRCS})
