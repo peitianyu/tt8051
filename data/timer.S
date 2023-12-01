@@ -8,6 +8,7 @@
 
     ORG     0012H
 MAIN:
+    CPL     P1^0
     MOV     SP,#7FH                 ;initial SP
     MOV     AUXR,#80H               ;timer0 work in 1T mode
     MOV     TMOD,#06H               ;set timer0 as counter mode2 (8-bit auto-reload)
@@ -17,7 +18,7 @@ MAIN:
     SETB    TR0                     ;timer0 start run
     SETB    ET0                     ;enable T0 interrupt
     SETB    EA                      ;open global interrupt switch
-    SJMP    0                       ; $功能未实现
+    SJMP    $                       ; $功能未实现
 
 T0INT:
     CPL     P0.0

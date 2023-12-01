@@ -10,7 +10,8 @@ SET(CMAKE_BUILD_TYPE Release)
 
 add_definitions(-DTEST_ENABLE)
 
-include_directories(src)
-file(GLOB_RECURSE ALL_LIBRIRY_SRCS "src/*.c*")
+include_directories(src/lib)
+file(GLOB_RECURSE ALL_LIBRIRY_SRCS "src/lib/*.c*")
 
-add_executable(${PROJECT_NAME} ${ALL_LIBRIRY_SRCS})
+add_executable(ttstc src/app/main_test.cc ${ALL_LIBRIRY_SRCS})
+add_executable(tt8051 src/app/tt8051.cc ${ALL_LIBRIRY_SRCS})

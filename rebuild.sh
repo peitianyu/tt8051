@@ -5,7 +5,8 @@ fi
 
 cd build && cmake .. && make -j6
 
-./tt_stc
+./ttstc
+# ./tt8051 ../data/timer.S ../out/timer.hex
 
 sleep 1s
 

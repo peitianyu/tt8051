@@ -33,7 +33,7 @@ std::vector<AsmData> ParseAsm::to_hex()
     std::vector<AsmData> hex_datas;
     for(uint i = 0; i < codes.size(); i++)
     {
-        std::cout << codes[i].line << ": [ " << codes[i].mnemonic << " ] " << codes[i].operands << std::endl;   
+        // std::cout << codes[i].line << ": [ " << codes[i].mnemonic << " ] " << codes[i].operands << std::endl;   
         AsmData data = asm_data(codes[i]);
 
         if(data.operands.empty()) {
@@ -187,7 +187,9 @@ OperandData ParseAsm::split_operand(const std::string& str)
         operand_data.operands.push_back(SYMBOL_SLASH);
     }else if(operand_str.front() == '$'){
         operand_str.erase(operand_str.begin());
-        operand_data.operands.push_back(SYMBOL_DOLLAR);
+        operand_data.operands.push_back(DATA_U8);
+        operand_data.datas.push_back(0xfe);
+        return operand_data;
     }
 
     // 3. 如果有'.', 一般针对bit数据, 如P0.1这种
@@ -203,6 +205,20 @@ OperandData ParseAsm::split_operand(const std::string& str)
         else operand_data.operands.push_back(DATA_VAR);
         return operand_data;
     }
+
+    bit_pos = operand_str.find('^');
+    if(bit_pos != std::string::npos) 
+    {
+        std::string sfr_str = operand_str.substr(0, bit_pos);
+        auto sfr_iter = m_sfrs.find(sfr_str);
+        if(sfr_iter != m_sfrs.end()){
+            operand_data.operands.push_back(DATA_BIT); 
+            operand_data.datas.push_back(m_sfrs[sfr_str]^(operand_str.back()-'0'));
+        } 
+        else operand_data.operands.push_back(DATA_VAR);
+        return operand_data;
+    }
+
 
     
     auto sbit_iter = m_sbits.find(operand_str);

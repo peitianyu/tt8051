@@ -9,13 +9,13 @@
 #include <iomanip>
 /*
 特殊寄存器, 常用符号, 数据类型
-R0~R7 A AB C DPTR PC @ # + / . $ , bit, u8, u16, var
+R0~R7 A AB C DPTR PC @ # + / . ^ $ , bit, u8, u16, var
 */
 enum OperandEnum
 {
     REG_R0 = 0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
     REG_A, REG_AB, REG_C, REG_DPTR, REG_PC, SYMBOL_AT, SYMBOL_HASH, SYMBOL_PLUS, 
-    SYMBOL_SLASH, SYMBOL_DOT, SYMBOL_DOLLAR, SYMBOL_COMMA, DATA_BIT, DATA_U8, DATA_U16, DATA_VAR
+    SYMBOL_SLASH, SYMBOL_DOT, SYMBOL_HAT, SYMBOL_DOLLAR, SYMBOL_COMMA, DATA_BIT, DATA_U8, DATA_U16, DATA_VAR
 };
 
 struct OperandData

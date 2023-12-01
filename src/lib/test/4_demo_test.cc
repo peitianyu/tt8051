@@ -7,7 +7,7 @@
 #include <iostream>
 #include <iomanip>
 
-void test_asm2hex(const std::string& code_path, const std::string& hex_path);
+static void test_asm2hex(const std::string& code_path, const std::string& hex_path);
 
 // JUST_RUN_TEST(io, test)
 TEST(io, test)
@@ -24,7 +24,7 @@ TEST(timer, test)
     test_asm2hex("../data/timer.S", "../out/timer.hex");
 }
 
-void test_asm2hex(const std::string& code_path, const std::string& hex_path)
+static void test_asm2hex(const std::string& code_path, const std::string& hex_path)
 {
     ParseFile parse_file(code_path);
     ParseSplitCode parse_code;
