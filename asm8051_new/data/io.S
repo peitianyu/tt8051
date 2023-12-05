@@ -1,7 +1,9 @@
+; 8051 LED Blinking
+
 #INCLUDE "stc8051.S"
 P4      SFR    E8H
 
-    ORG     0000H
+    ORG     0020H
     LJMP    MAIN
 
 MAIN:
@@ -15,7 +17,7 @@ MAIN:
     SETB    P4.0
 
 LOOP:
-    MOV     P2,#00H
+    MOV     P2,#00000000B
     MOV     P2,#FFH
     
     LJMP    LOOP
