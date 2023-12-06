@@ -3,23 +3,28 @@
 
 static char* g_src; /*src file string*/
 
+static uint8_t* g_hex; /*out hex*/
+static uint8_t g_hex_len;/*out hex length*/
+
 void set_token_file(char* src_file, int src_size) {
     FILE *fp = fopen(src_file, "r");
     g_src = (char*)malloc(src_size);
     memset(g_src, 0, src_size);
 
+    g_hex = (uint8_t*)malloc(src_size);
+    memset(g_hex, 0, src_size);
+
     if(!fread(g_src, 1, src_size, fp))  printf("read src file fail!\n");
     else                                fclose(fp);
 }
 
-char g_identifier[100]; /*identifier*/
-int  g_identifier_len;  /*identifier length*/
+static char g_identifier[100]; /*identifier*/
+static int  g_identifier_len;  /*identifier length*/
 
-uint8_t g_data[10]; /*data*/
-int g_data_len; /*data length*/
+static uint8_t g_data[10]; /*data*/
+static int g_data_len; /*data length*/
 
-int g_digit; /*digit*/
-
+static int g_digit; /*digit*/
 
 #include "utils.h"
 int next_token()

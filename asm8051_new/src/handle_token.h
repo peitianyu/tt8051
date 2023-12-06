@@ -5,6 +5,8 @@
 #   define INSTRUCTIONS
 #endif
 
+#define ERROR_TOKEN "error instructions!"
+
 void handle_token(int token);
 
 #endif // __HANDLE_TOKEN_H__

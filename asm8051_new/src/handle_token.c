@@ -1,8 +1,20 @@
 #include "handle_token.h"
+#include "get_token.h"
 
-INSTRUCTIONS void identifier2hex() {}
 
-INSTRUCTIONS void mov2hex() {}
+
+
+INSTRUCTIONS void identifier2hex() {
+
+}
+
+INSTRUCTIONS void mov2hex() {
+    if(next_token() == REG_A) { 
+        if(!next_token() != SYMBOL_COMMA) printf("ERROR: %s\n", ERROR_TOKEN);
+        
+
+    }
+}
 
 INSTRUCTIONS void movc2hex() {}
 
