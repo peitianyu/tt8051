@@ -1,8 +1,6 @@
 #ifndef __TOKEN_H__
 #define __TOKEN_H__
 
-
-
 /* R0~R7 A AB C DPTR PC @ # + / . ^ $ , */
 enum Token
 {
@@ -18,9 +16,5 @@ enum Token
     /* directives */
     DB, EQU, DATA, SFR, SBIT, ORG, END
 };
-
-
-
-
 
 #endif // __TOKEN_H__
