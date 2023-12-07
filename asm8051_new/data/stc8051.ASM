@@ -56,7 +56,7 @@ RI          SBIT         SCON.0
                         
 SBUF        SFR        99H
                         
-P2          SFR        A0H
+P2          SFR        0A0H
 P20         SBIT         P2.0
 P21         SBIT         P2.1
 P22         SBIT         P2.2
@@ -66,9 +66,9 @@ P25         SBIT         P2.5
 P26         SBIT         P2.6
 P27         SBIT         P2.7
                         
-AUXR1       SFR        A2H
+AUXR1       SFR        0A2H
                         
-IE          SFR        A8H
+IE          SFR        0A8H
 EA          SBIT         IE.7
 ET2         SBIT         IE.5
 ES          SBIT         IE.4
@@ -77,9 +77,9 @@ EX1         SBIT         IE.2
 ET0         SBIT         IE.1
 EX0         SBIT         IE.0
                         
-SADDR       SFR        A9H
+SADDR       SFR        0A9H
                         
-P3          SFR        B0H
+P3          SFR        0B0H
 P30         SBIT         P3.0
 P31         SBIT         P3.1
 P32         SBIT         P3.2
@@ -98,9 +98,9 @@ INT0        SBIT         P3.2
 TXD         SBIT         P3.1
 RXD         SBIT         P3.0
                         
-IPH         SFR        B7H
+IPH         SFR        0B7H
  
-IP          SFR        B8H
+IP          SFR        0B8H
 PT2         SBIT         IP.5
 PS          SBIT         IP.4
 PT1         SBIT         IP.3
@@ -108,9 +108,9 @@ PX1         SBIT         IP.2
 PT0         SBIT         IP.1
 PX0         SBIT         IP.0
                         
-SADEN       SFR        B9H
+SADEN       SFR        0B9H
 
-XICON       SFR        C0H
+XICON       SFR        0C0H
 PX3         SBIT         XICON.7
 EX3         SBIT         XICON.6
 IE3         SBIT         XICON.5
@@ -120,7 +120,7 @@ EX3         SBIT         XICON.2
 IE2         SBIT         XICON.1
 IT2         SBIT         XICON.0
 
-T2CON       SFR        C8H
+T2CON       SFR        0C8H
 TF2         SBIT         T2CON.7
 EXF2        SBIT         T2CON.6
 RCLK        SBIT         T2CON.5
@@ -130,13 +130,13 @@ TR2         SBIT         T2CON.2
 C_T2        SBIT         T2CON.1
 CP_RL2      SBIT         T2CON.0
 
-T2MOD       SFR        C9H
-RCAP2L      SFR        CAH
-RCAP2H      SFR        CBH
-TL2         SFR        CCH
-TH2         SFR        CDH
+T2MOD       SFR        0C9H
+RCAP2L      SFR        0CAH
+RCAP2H      SFR        0CBH
+TL2         SFR        0CCH
+TH2         SFR        0CDH
                         
-PSW         SFR        D0H
+PSW         SFR        0D0H
 CY          SBIT         PSW.7
 AC          SBIT         PSW.6
 F0          SBIT         PSW.5
@@ -146,17 +146,17 @@ OV          SBIT         PSW.2
 F1          SBIT         PSW.1
 P           SBIT         PSW.0
 
-ACC         SFR        E0H
+ACC         SFR        0E0H
 
-WDT_CONTR   SFR        E1H
-ISP_DATA    SFR        E2H
-ISP_ADDRH   SFR        E3H
-ISP_ADDRL   SFR        E4H
-ISP_CMD     SFR        E5H
-ISP_TRIG    SFR        E6H
-ISP_CONTR   SFR        E7H
+WDT_CONTR   SFR        0E1H
+ISP_DATA    SFR        0E2H
+ISP_ADDRH   SFR        0E3H
+ISP_ADDRL   SFR        0E4H
+ISP_CMD     SFR        0E5H
+ISP_TRIG    SFR        0E6H
+ISP_CONTR   SFR        0E7H
 
-P4          SFR        E8H
+P4          SFR        0E8H
 P40         SBIT         P4.0
 P41         SBIT         P4.1
 P42         SBIT         P4.2
@@ -166,4 +166,4 @@ P45         SBIT         P4.5
 P46         SBIT         P4.6
 P47         SBIT         P4.7
 
-B           SFR        F0H
+B           SFR        0F0H

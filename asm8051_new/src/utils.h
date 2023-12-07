@@ -2,8 +2,10 @@
 #define __UTILS_H__
 
 char toupper(char ch);
-
 char* toupper_str(char* str);
+
+char tolower(char ch);
+char* tolower_str(char* str);
 
 int to_digit(char* str, int len);
 

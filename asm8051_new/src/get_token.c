@@ -1,30 +1,65 @@
 #include "token.h"
 #include "get_token.h"
+#include "utils.h"
 
 static char* g_src; /*src file string*/
 
-static uint8_t* g_hex; /*out hex*/
-static uint8_t g_hex_len;/*out hex length*/
+static char* g_src_path; /*src file path*/
 
 void set_token_file(char* src_file, int src_size) {
     FILE *fp = fopen(src_file, "r");
     g_src = (char*)malloc(src_size);
     memset(g_src, 0, src_size);
 
-    g_hex = (uint8_t*)malloc(src_size);
-    memset(g_hex, 0, src_size);
-
     if(!fread(g_src, 1, src_size, fp))  printf("read src file fail!\n");
     else                                fclose(fp);
+
+    // printf("%s\n", g_src);
+
+    int pos = 0;
+    for(int i=0; i<strlen(src_file); ++i)  { if(src_file[i] == '/') pos = i; }
+    g_src_path = (char*)malloc(pos+1);
+    memset(g_src_path, 0, pos+2);
+    memcpy(g_src_path, src_file, pos+1);
+}
+
+void input_include_file(char* include_file)
+{
+    char* src_file = (char*)malloc(strlen(g_src_path)+strlen(include_file)+1);
+    memset(src_file, 0, strlen(g_src_path)+strlen(include_file)+1);
+    memcpy(src_file, g_src_path, strlen(g_src_path));
+    memcpy(src_file+strlen(g_src_path), include_file, strlen(include_file));
+
+    int src_size = 10*1024;
+    FILE *fp = fopen(src_file, "r");
+    char* include_src = (char*)malloc(src_size);
+    memset(include_src, 0, src_size);
+
+    if(!fread(include_src, 1, src_size, fp))    printf("read include file fail!\n");
+    else                                        fclose(fp);
+
+    char* start_src = g_src;
+    int start_len = strlen(g_src);
+    int include_len = strlen(include_src);
+    g_src = (char*)malloc(start_len+include_len+1);
+    memset(g_src, 0, start_len+include_len+1);
+    memcpy(g_src, include_src, include_len);
+    memcpy(g_src+include_len, start_src, start_len);
 }
 
 static char g_identifier[100]; /*identifier*/
 static int  g_identifier_len;  /*identifier length*/
 
-static uint8_t g_data[10]; /*data*/
-static int g_data_len; /*data length*/
-
 static int g_digit; /*digit*/
+
+void get_identifier(char* identifier, int* identifier_len) {
+    *identifier_len = g_identifier_len;
+    memcpy(identifier, g_identifier, g_identifier_len);
+}
+
+int get_digit() {
+    return g_digit;
+}
 
 #include "utils.h"
 int next_token()
@@ -53,7 +88,7 @@ int next_token()
             memcpy(identifier, start,  g_identifier_len);
             identifier = toupper_str(identifier);
             
-            printf("'%s' : ", identifier);
+            // printf("'%s' : ", identifier);
             *g_src--;
 
             if(strcmp((identifier), "R0") == 0) return REG_R0;
@@ -142,12 +177,20 @@ int next_token()
         }
     }
     
-    return token;
+    return -1;
 }
 
 int token_empty()
 {
     return *g_src == '\0';
+}
+
+int try_next_token()
+{
+    char* start = g_src;
+    int token = next_token();
+    g_src = start;
+    return token;
 }
 
 

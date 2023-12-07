@@ -1,126 +1,747 @@
 #include "handle_token.h"
 #include "get_token.h"
+#include "token.h"
+#include "map.h"
+#include "utils.h"
 
+static int g_is_end;
+static int g_curr_addr;
 
+static int* g_hex; /*out hex*/
+static int g_hex_len;/*out hex length*/
 
+enum DATA_TYPE {
+    DATA_TYPE_IMMEDIATE_NUM = 0, /* immediate data : #0x12 */
+    DATA_TYPE_REGISTER, /* register : R0~R7 */
+    DATA_TYPE_DIRECT_ADDRESS, /*direct address : 0x12 */
+    DATA_TYPE_INDIRECT_ADDRESS, /* indirect address : @R0||@R1 */
+    DATA_TYPE_BIT_ADDRESS,   /* bit address : 0x12^0 || P0^1 */
+    DATA_TYPE_SLASH, /* / */
+    DATA_TYPE_A, /* A */
+    DATA_TYPE_AB, /* AB */
+    DATA_TYPE_C, /* C */
+    DATA_TYPE_DPTR, /* DPTR */
+    DATA_TYPE_PC, /* PC */
+    DATA_TYPE_AT_A, /* @A */
+    DATA_TYPE_AT_DPTR, /* @DPTR */
+    DATA_TYPE_NONE /* none */
+};
 
-INSTRUCTIONS void identifier2hex() {
+static int get_data_type(int *val)
+{
+    int token = next_token();
+    int data_type = DATA_TYPE_NONE;
+    switch(token)
+    {
+        case REG_R0: 
+        case REG_R1:
+        case REG_R2:
+        case REG_R3:
+        case REG_R4:
+        case REG_R5:
+        case REG_R6:
+        case REG_R7:    *val = token; data_type = DATA_TYPE_REGISTER; break;
+        case SYMBOL_AT: 
+        {
+            token = next_token(); 
+            if(token == REG_R0 || token == REG_R1) { *val = token; data_type = DATA_TYPE_INDIRECT_ADDRESS;} 
+            else if(token == REG_DPTR) data_type = DATA_TYPE_AT_DPTR;
+            else if(token == REG_A) data_type = DATA_TYPE_AT_A;
+            break;
+        }
+        case SYMBOL_SLASH: data_type = DATA_TYPE_SLASH; break;
+        case REG_A:     data_type = DATA_TYPE_A; break;
+        case REG_AB:    data_type = DATA_TYPE_AB; break;
+        case REG_C:     data_type = DATA_TYPE_C; break;
+        case REG_DPTR:  data_type = DATA_TYPE_DPTR; break;
+        case REG_PC:    data_type = DATA_TYPE_PC; break;
+        case SYMBOL_HASH: {if(next_token() == SYMBOL_NUM) { *val = get_digit(); data_type = DATA_TYPE_IMMEDIATE_NUM; }  break;}
+        case SYMBOL_NUM:
+        case IDENTIFIER:
+            {
+                if(token == SYMBOL_NUM) *val = get_digit();
+                else {
+                    char identifier[16];
+                    memset(identifier, 0, 16);
+                    int identifier_len;
+                    get_identifier(identifier, &identifier_len);
+                    *val = map_get_value(identifier);
+                }
 
+                if(try_next_token() == SYMBOL_HAT || try_next_token() == SYMBOL_DOT) {
+                    next_token();
+                    if(next_token() == SYMBOL_NUM) {
+                        *val = *val^get_digit();
+                        data_type = DATA_TYPE_BIT_ADDRESS;
+                    }
+                }
+                else data_type = DATA_TYPE_DIRECT_ADDRESS;  /* xxx: direct_addr maybe sbit||sfr, optimize later */
+                break;
+            }
+    }
+
+    return data_type;
 }
 
-INSTRUCTIONS void mov2hex() {
-    if(next_token() == REG_A) { 
-        if(!next_token() != SYMBOL_COMMA) printf("ERROR: %s\n", ERROR_TOKEN);
-        
+void handle_token_init()
+{
+    g_is_end = 0;
+    g_curr_addr = 0;
 
+    g_hex = (int*)malloc(HEX_MAX_SIZE);
+    memset(g_hex, 0, HEX_MAX_SIZE);
+    g_hex_len = 0;
+
+    init_map();
+}
+
+#include <stdarg.h>
+static void set_hex(int hex_len, ...)
+{
+    va_list ap;
+    va_start(ap, hex_len);
+    for(int i = 0; i < hex_len; ++i) {
+        g_hex[g_hex_len++] = va_arg(ap, int);
+    }
+    va_end(ap);
+}
+
+/*db is not supported yet*/
+static void identifier2hex() {
+    char* identifier;
+    int identifier_len;
+    get_identifier(identifier, &identifier_len);
+
+    /*equ sfr data sbit db label*/
+    int token = next_token();
+    if(token == DATA || token == SFR || token == EQU) 
+    {
+        if(next_token() == SYMBOL_NUM)   {
+            map_add_pair(identifier, get_digit());
+            return;
+        }
+    }
+    else if(token == SBIT) /* identifier sbit , (80H^1/P0^1) */
+    {
+        token = next_token();
+        if(token == SYMBOL_NUM || token == IDENTIFIER) {
+            int value = 0;
+            if(token == SYMBOL_NUM) value = get_digit();
+            else {
+                char data_identifier[16];
+                memset(data_identifier, 0, 16);
+                get_identifier(data_identifier, &identifier_len);
+                value = map_get_value(data_identifier);
+            }
+
+            token = next_token();
+            if((token == SYMBOL_HAT || token == SYMBOL_DOT) && next_token() == SYMBOL_NUM) {
+                map_add_pair(identifier, value^get_digit());
+                return ;
+            }
+        }
+    }
+    else if(token == SYMBOL_COLON) {
+        map_add_pair(identifier, g_curr_addr);
+        return;
+    } 
+
+    printf("ERROR: %s (%s): %d
+", ERROR_TOKEN, __FUNCTION__, __LINE__);
+}
+
+static void mov2hex() {
+    int val = -1;
+    int data_type = get_data_type(&val);
+    
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0xE8+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xE5, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0xE6+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x74, val);
+    }
+    else if (data_type == DATA_TYPE_REGISTER)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int reg_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_A) set_hex(1, 0xF8+reg_addr);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xA8+reg_addr, val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x78+reg_addr, val);
+    }
+    else if(data_type == DATA_TYPE_DIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int direct_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_A) set_hex(2, 0xF5, direct_addr);
+        else if(data_type == DATA_TYPE_REGISTER) set_hex(2, 0x88+val, direct_addr);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0x85, direct_addr, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(2, 0x86+val, direct_addr);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(3, 0x75, direct_addr, val);
+    }
+    else if(data_type == DATA_TYPE_INDIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int indirect_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_A) set_hex(2, 0xF6+indirect_addr);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xA6+indirect_addr, val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x76+indirect_addr, val);
+    }
+    else if(data_type == DATA_TYPE_C)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0xA2, val);
+    }
+    else if(data_type == DATA_TYPE_BIT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int bit_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_C) set_hex(2, 0x92, bit_addr);
+    }
+    else if(data_type == DATA_TYPE_DPTR)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(3, 0x90, (val>>8)&0xFF, (val)&0xFF);
     }
 }
 
-INSTRUCTIONS void movc2hex() {}
+static void movc2hex()
+{
+    int val = -1;
+    int data_type = get_data_type(&val);
+    
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        if(get_data_type(&val) != DATA_TYPE_AT_A) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        if(next_token() != SYMBOL_PLUS) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void movx2hex() {}
+        int token = next_token();
+        if(token == REG_DPTR) set_hex(1, 0x93);
+        else if(token == REG_PC) set_hex(1, 0x83);
+    }
+}
 
-INSTRUCTIONS void push2hex() {}
+static void movx2hex()
+{
+    int val = -1;
+    int data_type = get_data_type(&val);
+    
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void pop2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_AT_DPTR) set_hex(1, 0xE0);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0xE2+val);
+    }
+    else if(data_type == DATA_TYPE_INDIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int reg_addr = val;
+        if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0xF2+reg_addr);
+    }
+    else if(data_type == DATA_TYPE_AT_DPTR)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void xch2hex() {}
+        if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0xF0);
+    }
+}
 
-INSTRUCTIONS void xchd2hex() {}
+static void push2hex()
+{
+    int val = -1;
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xC0, val);
+}
 
-INSTRUCTIONS void swap2hex() {}
+static void pop2hex()
+{
+    int val = -1;
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xD0, val);
+}
 
-INSTRUCTIONS void add2hex() {}
+static void xch2hex()
+{
+    int val = -1;
+    int data_type = get_data_type(&val);
+    
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void addc2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0xC8+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xC5, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0xC6+val);
+    }
+}
 
-INSTRUCTIONS void subb2hex() {}
+static void xchd2hex()
+{
+    int val = -1;    
+    if (get_data_type(&val) == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void inc2hex() {}
+        if(get_data_type(&val) == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0xD6+val);
+    }
+}
 
-INSTRUCTIONS void dec2hex() {}
+static void swap2hex()
+{
+    int val = -1;    
+    if (get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0xC4);
+}
 
-INSTRUCTIONS void mul2hex() {}
+static void add2hex()
+{
+    int val = -1;    
+    if (get_data_type(&val) == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void div2hex() {}
+        int data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x28+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x25, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x26+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x24, val);
+    }
+}
 
-INSTRUCTIONS void da2hex() {}
+static void addc2hex()
+{
+    int val = -1;    
+    if (get_data_type(&val) == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void clr2hex() {}
+        int data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x38+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x35, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x36+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x34, val);
+    }
+}
 
-INSTRUCTIONS void cpl2hex() {}
+static void subb2hex()
+{
+    int val = -1;    
+    if (get_data_type(&val) == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void rl2hex() {}
+        int data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x98+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x95, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x96+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x94, val);
+    }
+}
 
-INSTRUCTIONS void rlc2hex() {}
+static void inc2hex()
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_A) set_hex(1, 0x04);
+    else if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x08+val);
+    else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x05, val);
+    else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x06+val);
+    else if(data_type == DATA_TYPE_DPTR) set_hex(1, 0xA3);
+}
 
-INSTRUCTIONS void rr2hex() {}
+static void dec2hex()
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_A) set_hex(1, 0x14);
+    else if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x18+val);
+    else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x15, val);
+    else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x16+val);
+}
 
-INSTRUCTIONS void rrc2hex() {}
+static void mul2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_AB) set_hex(1, 0xA4);
+}
 
-INSTRUCTIONS void anl2hex() {}
+static void div2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_AB) set_hex(1, 0x84);
+}
 
-INSTRUCTIONS void orl2hex() {}
+static void da2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0xD4);
+}
 
-INSTRUCTIONS void xrl2hex() {}
+static void clr2hex()
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_A) set_hex(1, 0xE4);
+    else if(data_type == DATA_TYPE_C) set_hex(1, 0xC3);
+    else if(data_type == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0xC2, val);
+}
 
-INSTRUCTIONS void ajmp2hex() {}
+static void cpl2hex() 
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_A) set_hex(1, 0xF4);
+    else if(data_type == DATA_TYPE_C) set_hex(1, 0xB3);
+    else if(data_type == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0xB2, val);
+}
 
-INSTRUCTIONS void sjmp2hex() {}
+static void rl2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0x23);
+}
 
-INSTRUCTIONS void ljmp2hex() {}
+static void rlc2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0x33);
+}
 
-INSTRUCTIONS void jmp2hex() {}
+static void rr2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0x03);
+}
 
-INSTRUCTIONS void jz2hex() {}
+static void rrc2hex() 
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_A) set_hex(1, 0x13);
+}
 
-INSTRUCTIONS void jnz2hex() {}
+static void anl2hex()
+{
+    int val = -1; 
+    int data_type = get_data_type(&val);   
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void cjne2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x58+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x55, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x56+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x54, val);
+    }
+    else if (data_type == DATA_TYPE_DIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int direct_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_A) set_hex(2, 0x52, direct_addr);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(3, 0x53, direct_addr, val);
+    }
+    else if (data_type == DATA_TYPE_C)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void djnz2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0x82, val);
+        else if(data_type == DATA_TYPE_SLASH && get_data_type(&val) == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0xB0, val);
+    }
+}
 
-INSTRUCTIONS void acall2hex() {}
+static void orl2hex()
+{
+    int val = -1; 
+    int data_type = get_data_type(&val);   
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void lcall2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x48+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x45, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x46+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x44, val);
+    }
+    else if (data_type == DATA_TYPE_DIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int direct_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_A) set_hex(2, 0x42, direct_addr);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(3, 0x43, direct_addr, val);
+    }
+    else if (data_type == DATA_TYPE_C)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void ret2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0x72, val);
+        else if(data_type == DATA_TYPE_SLASH && get_data_type(&val) == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0xA0, val);
+    }
+}
 
-INSTRUCTIONS void reti2hex() {}
+static void xrl2hex()
+{
+    int val = -1; 
+    int data_type = get_data_type(&val);   
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void nop2hex() {}
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_REGISTER) set_hex(1, 0x68+val);
+        else if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x65, val);
+        else if(data_type == DATA_TYPE_INDIRECT_ADDRESS) set_hex(1, 0x66+val);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(2, 0x64, val);
+    }
+    else if (data_type == DATA_TYPE_DIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+        int direct_addr = val;
+        data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_A) set_hex(2, 0x62, direct_addr);
+        else if(data_type == DATA_TYPE_IMMEDIATE_NUM) set_hex(3, 0x63, direct_addr, val);
+    }
+}
 
-INSTRUCTIONS void setb2hex() {}
+static void ajmp2hex() 
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, (val<<5+1)&0xff, val&0xff);
+}
 
-INSTRUCTIONS void jc2hex() {}
+static void sjmp2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x80, val);
+}
 
-INSTRUCTIONS void jnc2hex() {}
+static void ljmp2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0x02, (val>>8)&0xFF, (val)&0xFF);
+}
 
-INSTRUCTIONS void jb2hex() {}
+static void jmp2hex()
+{
+    int val = -1; 
+    if(get_data_type(&val) != DATA_TYPE_AT_A) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    if(next_token() != SYMBOL_PLUS) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    if(next_token() == REG_DPTR) set_hex(1, 0x73);
+}
 
-INSTRUCTIONS void jnb2hex() {}
+static void jz2hex() 
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x60, val);
+}
 
-INSTRUCTIONS void jbc2hex() {}
+static void jnz2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x70, val);
+}
 
-INSTRUCTIONS void org2hex() {}
+static void cjne2hex()
+{
+    int val = -1; 
+    int data_type = get_data_type(&val);   
+    if (data_type == DATA_TYPE_A)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void db2hex() {}
+        int val1 = -1;
+        int data_type = get_data_type(&val1);
+        if(data_type == DATA_TYPE_DIRECT_ADDRESS){
+            if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+            if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0xB5, val1, val);
+        }else if(data_type == DATA_TYPE_IMMEDIATE_NUM){
+            if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+            if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0xB4, val1, val);
+        }
+    }
+    else if (data_type == DATA_TYPE_REGISTER)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void data2hex() {}
+        int reg_addr = val;
+        int val1 = -1;
+        int data_type = get_data_type(&val1);
+        if(data_type == DATA_TYPE_IMMEDIATE_NUM){
+            if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+            if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0xB8+reg_addr, val1, val);
+        }
+    }
+    else if (data_type == DATA_TYPE_INDIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void equ2hex() {}
+        int reg_addr = val;
+        int val1 = -1;
+        int data_type = get_data_type(&val1);
+        if(data_type == DATA_TYPE_IMMEDIATE_NUM){
+            if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+            if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0xB6+reg_addr, val1, val);
+        }
+    }
+}
 
-INSTRUCTIONS void sfr2hex() {}
+static void djnz2hex() 
+{
+    int val = -1; 
+    int data_type = get_data_type(&val);   
+    if (data_type == DATA_TYPE_REGISTER)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void sbit2hex() {}
+        int reg_addr = val;
+        int data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0xD8+reg_addr, val);
+    }
+    else if (data_type == DATA_TYPE_DIRECT_ADDRESS)
+    {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
-INSTRUCTIONS void end2hex() {}
+        int direct_addr = val;
+        int data_type = get_data_type(&val);
+        if(data_type == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0xD5, direct_addr, val);
+    }
+}
 
-INSTRUCTIONS void include2hex() {}
+static void acall2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, ((val<<5)+0x11)&0xff, val&0xff);
+}
+
+static void lcall2hex()
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0x12, (val>>8)&0xFF, (val)&0xFF);
+}
+
+static void ret2hex() {set_hex(1, 0x22);}
+
+static void reti2hex() {set_hex(1, 0x32);}
+
+static void nop2hex() {set_hex(1, 0x00);}
+
+static void setb2hex() 
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_C) set_hex(1, 0xD3);
+    else if(data_type == DATA_TYPE_BIT_ADDRESS) set_hex(2, 0xD2, val);
+}
+
+static void jc2hex() 
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x40, val);
+}
+
+static void jnc2hex() 
+{
+    int val = -1;    
+    if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(2, 0x50, val);
+}
+
+static void jb2hex() 
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_BIT_ADDRESS) {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+
+        int bit_addr = val;
+        if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0x20, bit_addr, val);
+    }
+}
+
+static void jnb2hex() 
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_BIT_ADDRESS) {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+
+        int bit_addr = val;
+        if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0x30, bit_addr, val);
+    }
+}
+
+static void jbc2hex()
+{
+    int val = -1;    
+    int data_type = get_data_type(&val);
+    if(data_type == DATA_TYPE_BIT_ADDRESS) {
+        if(next_token() != SYMBOL_COMMA) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+
+        int bit_addr = val;
+        if(get_data_type(&val) == DATA_TYPE_DIRECT_ADDRESS) set_hex(3, 0x10, bit_addr, val);
+    }
+}
+
+static void org2hex() {
+    if(next_token() != SYMBOL_NUM) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+
+    g_curr_addr = get_digit();
+}
+
+static void end2hex() { 
+    g_is_end = 1; 
+
+    printf("hex: ");
+    for(int i = 0; i < g_hex_len; ++i) {
+        printf("%02X ", g_hex[i]);
+    }
+    printf("\n");
+}
+
+static void include2hex() {
+    if(next_token() != INCLUDE) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    if(next_token() != SYMBOL_QUOTE) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    if(next_token() != IDENTIFIER) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    char file_name[100];
+    int file_name_len;
+    get_identifier(file_name, &file_name_len);
+    printf("file_name: %s\n", file_name);
+    if(next_token() != SYMBOL_DOT) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    if(next_token() != IDENTIFIER) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    char suffix[100]; 
+    int suffix_len;
+    get_identifier(suffix, &suffix_len);
+    if(next_token() != SYMBOL_QUOTE) printf("ERROR: %s (%s): %d", ERROR_TOKEN, __FUNCTION__, __LINE__);
+
+    /*file_name + '.' + suffix*/
+    /* xxx: just for xxx.S (filenale is lower case), optimize later */
+    char* include_file = (char*)malloc(file_name_len+suffix_len+2);
+    memset(include_file, 0, file_name_len+suffix_len+2);
+    memcpy(include_file, tolower_str(file_name), file_name_len);
+    memcpy(include_file+file_name_len, ".", 1);
+    memcpy(include_file+file_name_len+1, suffix, suffix_len);
+
+    input_include_file(include_file);
+}
 
 #include "token.h"
 void handle_token(int token)
 {
+    if(g_is_end) return;
+
     switch(token)
     {
         case MOV: mov2hex(); break;
@@ -168,13 +789,8 @@ void handle_token(int token)
         case JNB: jnb2hex(); break;
         case JBC: jbc2hex(); break;
         case ORG: org2hex(); break;
-        case DB: db2hex(); break;
-        case EQU: equ2hex(); break;
-        case DATA: data2hex(); break;
-        case SFR: sfr2hex(); break;
-        case SBIT: sbit2hex(); break;
         case END: end2hex(); break;
-        case INCLUDE: include2hex(); break;
         case IDENTIFIER: identifier2hex(); break;
+        case SYMBOL_HASH: if(try_next_token() == INCLUDE) include2hex(); break;
     }
 }

@@ -1,4 +1,4 @@
-#!/usr/local/bin/tcc -run handle_token.c get_token.c utils.c
+#!/usr/local/bin/tcc -run handle_token.c get_token.c utils.c map.c
 
 #include "handle_token.h"
 #include "get_token.h"
@@ -15,15 +15,21 @@ static char* g_token_str[] = {
 
 int main(int argc, char *argv[])
 {
-    char* src_file = (argc > 1) ? argv[1] : "../data/token.S";
+    char* src_file = (argc > 1) ? argv[1] : "../data/token.ASM";
     int src_size = 10*1024;
     set_token_file(src_file, src_size);
 
+    handle_token_init();
+
     while(!token_empty()) {
         int token = next_token();
-        printf("%s\n", g_token_str[token]);
 
-        handle_token(token);
+        if(token == -1){
+            printf("error token\n");
+        }else{
+            // printf("%s\n", g_token_str[token]);
+            handle_token(token);
+        }
     }
     return 0;
 }

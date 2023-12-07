@@ -14,6 +14,20 @@ char* toupper_str(char* str)
     return str;
 }
 
+char tolower(char ch){
+    return (ch >= 'A' && ch <= 'Z') ? ch+32 : ch;
+}
+
+char* tolower_str(char* str)
+{
+    char* p = str;
+    while(*p != '\0'){
+        *p = tolower(*p);
+        p++;
+    }
+    return str;
+}
+
 int to_digit(char* str, int len)
 {
     // parse number, three kinds: hex(12H) dec(12) bin(1100B)
