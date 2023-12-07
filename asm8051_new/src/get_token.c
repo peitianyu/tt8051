@@ -25,6 +25,8 @@ void set_token_file(char* src_file, int src_size) {
 
 void input_include_file(char* include_file)
 {
+    printf("include file: %s\n", include_file);
+    
     char* src_file = (char*)malloc(strlen(g_src_path)+strlen(include_file)+1);
     memset(src_file, 0, strlen(g_src_path)+strlen(include_file)+1);
     memcpy(src_file, g_src_path, strlen(g_src_path));

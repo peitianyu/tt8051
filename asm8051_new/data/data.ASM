@@ -1,7 +1,7 @@
 ; P0          SFR        80H
 ; P00         SBIT       P0.0
 ; P01         SBIT       P0^1
-P1          DATA       90H
+; P1          DATA       90H
 ; P2          SFR        0A0H
 
 ; HELLO: 
@@ -143,11 +143,13 @@ P1          DATA       90H
 ; setb C
 ; setb P1.0
 
-jc 40h
-jnc 30h
-jb P1.0, 40h
-jnb P1.0, 30h
-jbc P1.0, 40h
+; jc 40h
+; jnc 30h
+; jb P1.0, 40h
+; jnb P1.0, 30h
+; jbc P1.0, 40h
+
+org 00h
 
 
 END

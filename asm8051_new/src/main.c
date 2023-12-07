@@ -15,7 +15,7 @@ static char* g_token_str[] = {
 
 int main(int argc, char *argv[])
 {
-    char* src_file = (argc > 1) ? argv[1] : "../data/token.ASM";
+    char* src_file = (argc > 1) ? argv[1] : "../data/io.ASM";
     int src_size = 10*1024;
     set_token_file(src_file, src_size);
 

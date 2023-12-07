@@ -104,11 +104,15 @@ static void set_hex(int hex_len, ...)
         g_hex[g_hex_len++] = va_arg(ap, int);
     }
     va_end(ap);
+
+    g_curr_addr += hex_len;
+    printf("0x%04X: ", g_curr_addr);
 }
 
 /*db is not supported yet*/
 static void identifier2hex() {
-    char* identifier;
+    char identifier[16];
+    memset(identifier, 0, 16);
     int identifier_len;
     get_identifier(identifier, &identifier_len);
 
@@ -143,11 +147,12 @@ static void identifier2hex() {
     }
     else if(token == SYMBOL_COLON) {
         map_add_pair(identifier, g_curr_addr);
+
+        // TODO: 通过这里更新label的地址
         return;
     } 
 
-    printf("ERROR: %s (%s): %d
-", ERROR_TOKEN, __FUNCTION__, __LINE__);
+    printf("[ERROR]: identifier: %s (%s): %d\n", identifier, __FUNCTION__, __LINE__);
 }
 
 static void mov2hex() {
@@ -718,7 +723,7 @@ static void include2hex() {
     char file_name[100];
     int file_name_len;
     get_identifier(file_name, &file_name_len);
-    printf("file_name: %s\n", file_name);
+    // printf("file_name: %s\n", file_name);
     if(next_token() != SYMBOL_DOT) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
     if(next_token() != IDENTIFIER) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
     char suffix[100]; 
