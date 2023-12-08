@@ -23,13 +23,8 @@ int main(int argc, char *argv[])
 
     while(!token_empty()) {
         int token = next_token();
-
-        if(token == -1){
-            printf("error token\n");
-        }else{
-            // printf("%s\n", g_token_str[token]);
-            handle_token(token);
-        }
+        // printf("%s\n", g_token_str[token]);
+        handle_token(token);
     }
     return 0;
 }

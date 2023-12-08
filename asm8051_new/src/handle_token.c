@@ -65,7 +65,15 @@ static int get_data_type(int *val)
                     memset(identifier, 0, 16);
                     int identifier_len;
                     get_identifier(identifier, &identifier_len);
-                    *val = map_get_value(identifier);
+
+                    if(is_in_map(SFR_MAP_TYPE, identifier))
+                        *val = map_get_value(SFR_MAP_TYPE, identifier);
+                    else if(is_in_map(SBIT_MAP_TYEP, identifier)){
+                        *val = map_get_value(SBIT_MAP_TYEP, identifier);
+                        data_type = DATA_TYPE_BIT_ADDRESS;
+                    }
+                    
+                    // printf("%s: %d\n", identifier, *val);
                 }
 
                 if(try_next_token() == SYMBOL_HAT || try_next_token() == SYMBOL_DOT) {
@@ -75,7 +83,6 @@ static int get_data_type(int *val)
                         data_type = DATA_TYPE_BIT_ADDRESS;
                     }
                 }
-                else data_type = DATA_TYPE_DIRECT_ADDRESS;  /* xxx: direct_addr maybe sbit||sfr, optimize later */
                 break;
             }
     }
@@ -106,11 +113,11 @@ static void set_hex(int hex_len, ...)
     va_end(ap);
 
     g_curr_addr += hex_len;
-    printf("0x%04X: ", g_curr_addr);
+    // printf("0x%04X: ", g_curr_addr);
 }
 
 /*db is not supported yet*/
-static void identifier2hex() {
+static void identifier_handle() {
     char identifier[16];
     memset(identifier, 0, 16);
     int identifier_len;
@@ -121,7 +128,7 @@ static void identifier2hex() {
     if(token == DATA || token == SFR || token == EQU) 
     {
         if(next_token() == SYMBOL_NUM)   {
-            map_add_pair(identifier, get_digit());
+            map_add_pair(SFR_MAP_TYPE, identifier, get_digit());
             return;
         }
     }
@@ -129,24 +136,25 @@ static void identifier2hex() {
     {
         token = next_token();
         if(token == SYMBOL_NUM || token == IDENTIFIER) {
-            int value = 0;
+            int value = -1;
             if(token == SYMBOL_NUM) value = get_digit();
             else {
                 char data_identifier[16];
                 memset(data_identifier, 0, 16);
                 get_identifier(data_identifier, &identifier_len);
-                value = map_get_value(data_identifier);
+                if(is_in_map(SFR_MAP_TYPE, data_identifier))
+                    value = map_get_value(SFR_MAP_TYPE, data_identifier);
             }
 
             token = next_token();
             if((token == SYMBOL_HAT || token == SYMBOL_DOT) && next_token() == SYMBOL_NUM) {
-                map_add_pair(identifier, value^get_digit());
+                map_add_pair(SBIT_MAP_TYEP, identifier, value^get_digit());
                 return ;
             }
         }
     }
     else if(token == SYMBOL_COLON) {
-        map_add_pair(identifier, g_curr_addr);
+        map_add_pair(LABEL_MAP_TYPE, identifier, g_curr_addr);
 
         // TODO: 通过这里更新label的地址
         return;
@@ -155,7 +163,8 @@ static void identifier2hex() {
     printf("[ERROR]: identifier: %s (%s): %d\n", identifier, __FUNCTION__, __LINE__);
 }
 
-static void mov2hex() {
+static void mov2hex() 
+{
     int val = -1;
     int data_type = get_data_type(&val);
     
@@ -700,13 +709,13 @@ static void jbc2hex()
     }
 }
 
-static void org2hex() {
+static void org_handle() {
     if(next_token() != SYMBOL_NUM) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
     g_curr_addr = get_digit();
 }
 
-static void end2hex() { 
+static void end_handle() { 
     g_is_end = 1; 
 
     printf("hex: ");
@@ -716,7 +725,7 @@ static void end2hex() {
     printf("\n");
 }
 
-static void include2hex() {
+static void include_handle() {
     if(next_token() != INCLUDE) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
     if(next_token() != SYMBOL_QUOTE) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
     if(next_token() != IDENTIFIER) printf("ERROR: %s (%s): %d\n", ERROR_TOKEN, __FUNCTION__, __LINE__);
@@ -732,10 +741,9 @@ static void include2hex() {
     if(next_token() != SYMBOL_QUOTE) printf("ERROR: %s (%s): %d", ERROR_TOKEN, __FUNCTION__, __LINE__);
 
     /*file_name + '.' + suffix*/
-    /* xxx: just for xxx.S (filenale is lower case), optimize later */
     char* include_file = (char*)malloc(file_name_len+suffix_len+2);
     memset(include_file, 0, file_name_len+suffix_len+2);
-    memcpy(include_file, tolower_str(file_name), file_name_len);
+    memcpy(include_file, file_name, file_name_len);
     memcpy(include_file+file_name_len, ".", 1);
     memcpy(include_file+file_name_len+1, suffix, suffix_len);
 
@@ -793,9 +801,9 @@ void handle_token(int token)
         case JB: jb2hex(); break;
         case JNB: jnb2hex(); break;
         case JBC: jbc2hex(); break;
-        case ORG: org2hex(); break;
-        case END: end2hex(); break;
-        case IDENTIFIER: identifier2hex(); break;
-        case SYMBOL_HASH: if(try_next_token() == INCLUDE) include2hex(); break;
+        case ORG: org_handle(); break;
+        case END: end_handle(); break;
+        case IDENTIFIER: identifier_handle(); break;
+        case SYMBOL_HASH: if(try_next_token() == INCLUDE) include_handle(); break;
     }
 }

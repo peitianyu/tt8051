@@ -160,8 +160,9 @@ int next_token()
             else if(strcmp(identifier, "INCLUDE") == 0) return INCLUDE;
             else {
                 // identifier
-                for(int i=0; i< g_identifier_len; ++i) g_identifier[i] = identifier[i]; 
-                g_identifier[ g_identifier_len] = '\0';
+                memset(g_identifier, 0,  g_identifier_len+1);
+                memcpy(g_identifier, start,  g_identifier_len);
+
                 return IDENTIFIER;
             }
         }

@@ -1,30 +1,29 @@
 ; P0          SFR        80H
 ; P00         SBIT       P0.0
 ; P01         SBIT       P0^1
-; P1          DATA       90H
+P1          DATA       90H
 ; P2          SFR        0A0H
 
 ; HELLO: 
 
+mov a, r3
+mov a, 50
+mov a, @r1
+mov a, #50h
 
-; mov a, r3
-; mov a, 50
-; mov a, @r1
-; mov a, #50h
+mov r4, A
+mov r4, 50
+mov r4, #00001000b
 
-; mov r4, A
-; mov r4, 50
-; mov r4, #00001000b
+mov 30, a
+mov 30, r5
+mov 30, 50h
+mov 30, @r0
+mov 30h, #50h
 
-; mov 30, a
-; mov 30, r5
-; mov 30, 50h
-; mov 30, @r0
-; mov 30h, #50h
-
-; mov @r0, A
-; mov @r0, 50
-; mov @r0, #00001000b
+mov @r0, A
+mov @r0, 50
+mov @r0, #00001000b
 
 ; mov C, P1.0
 ; mov P1.0, C
@@ -149,7 +148,7 @@
 ; jnb P1.0, 30h
 ; jbc P1.0, 40h
 
-org 00h
+; org 00h
 
 
 END

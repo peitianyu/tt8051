@@ -6,6 +6,7 @@
     LJMP    MAIN
 
 MAIN:
+
 ;     CLR     P1.0
 ;     SETB    P1.0
 
@@ -21,4 +22,4 @@ MAIN:
     
 ;     LJMP    LOOP
 
-;     END
+    END
